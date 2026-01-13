@@ -3,6 +3,10 @@ import { validateCandidateData } from '../validator';
 import { Education } from '../../domain/models/Education';
 import { WorkExperience } from '../../domain/models/WorkExperience';
 import { Resume } from '../../domain/models/Resume';
+import { PrismaClient } from '@prisma/client';
+import { Application } from '../../domain/models/Application';
+
+const prisma = new PrismaClient();
 
 export const addCandidate = async (candidateData: any) => {
     try {
@@ -62,4 +66,52 @@ export const findCandidateById = async (id: number): Promise<Candidate | null> =
         console.error('Error al buscar el candidato:', error);
         throw new Error('Error al recuperar el candidato');
     }
+};
+
+export const updateCandidateStage = async (candidateId: number, stage: string): Promise<Application> => {
+    // Verificar que el Candidate existe
+    const candidate = await Candidate.findOne(candidateId);
+    if (!candidate) {
+        throw new Error('Candidate not found');
+    }
+
+    // Buscar Application por candidateId (tomar la más reciente)
+    const application = await prisma.application.findFirst({
+        where: { candidateId },
+        include: {
+            position: {
+                select: { interviewFlowId: true }
+            }
+        },
+        orderBy: { applicationDate: 'desc' }
+    });
+
+    if (!application) {
+        throw new Error('Application not found for this candidate');
+    }
+
+    // Buscar InterviewStep por nombre dentro del InterviewFlow de la Position
+    const interviewStep = await prisma.interviewStep.findFirst({
+        where: {
+            name: stage,
+            interviewFlowId: application.position.interviewFlowId
+        }
+    });
+
+    if (!interviewStep) {
+        throw new Error(`InterviewStep with name "${stage}" not found in the InterviewFlow for this position`);
+    }
+
+    // Actualizar Application.currentInterviewStep
+    const updatedApplication = await prisma.application.update({
+        where: { id: application.id },
+        data: { currentInterviewStep: interviewStep.id },
+        include: {
+            candidate: true,
+            interviewStep: true,
+            position: true
+        }
+    });
+
+    return new Application(updatedApplication);
 };
