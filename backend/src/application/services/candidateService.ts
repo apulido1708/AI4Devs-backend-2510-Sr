@@ -3,10 +3,8 @@ import { validateCandidateData } from '../validator';
 import { Education } from '../../domain/models/Education';
 import { WorkExperience } from '../../domain/models/WorkExperience';
 import { Resume } from '../../domain/models/Resume';
-import { PrismaClient } from '@prisma/client';
 import { Application } from '../../domain/models/Application';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../infrastructure/prisma';
 
 export const addCandidate = async (candidateData: any) => {
     try {

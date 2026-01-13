@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../infrastructure/prisma';
 
 export interface CandidateKanbanItem {
+  applicationId: number;
   fullName: string;
   currentInterviewStep: string;
   averageScore: number | null;
@@ -52,6 +51,7 @@ export const getCandidatesForPosition = async (positionId: number): Promise<Cand
       : null;
 
     return {
+      applicationId: application.id!,
       fullName,
       currentInterviewStep,
       averageScore

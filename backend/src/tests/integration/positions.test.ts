@@ -33,9 +33,11 @@ describe('GET /positions/:id/candidates', () => {
             
             // Verificar estructura de respuesta
             response.body.forEach((candidate: any) => {
+                expect(candidate).toHaveProperty('applicationId');
                 expect(candidate).toHaveProperty('fullName');
                 expect(candidate).toHaveProperty('currentInterviewStep');
                 expect(candidate).toHaveProperty('averageScore');
+                expect(typeof candidate.applicationId).toBe('number');
                 expect(typeof candidate.fullName).toBe('string');
                 expect(typeof candidate.currentInterviewStep).toBe('string');
                 expect(candidate.averageScore === null || typeof candidate.averageScore === 'number').toBe(true);
@@ -68,7 +70,16 @@ describe('GET /positions/:id/candidates', () => {
                 (c: any) => c.averageScore === null
             );
 
-            expect(candidatesWithoutScore.length).toBeGreaterThanOrEqual(0);
+            // Verificar que al menos hay un candidato con averageScore null o que todos los candidatos tienen averageScore válido (number o null)
+            if (candidatesWithoutScore.length > 0) {
+                candidatesWithoutScore.forEach((candidate: any) => {
+                    expect(candidate.averageScore).toBeNull();
+                });
+            }
+            // Si no hay candidatos sin score, verificar que todos tienen score numérico
+            response.body.forEach((candidate: any) => {
+                expect(candidate.averageScore === null || typeof candidate.averageScore === 'number').toBe(true);
+            });
         });
 
         it('debería retornar nombre del InterviewStep, no el ID', async () => {
@@ -107,26 +118,34 @@ describe('GET /positions/:id/candidates', () => {
             const company = await prisma.company.findFirst();
             const interviewFlow = await prisma.interviewFlow.findFirst();
             
-            if (company && interviewFlow) {
-                const emptyPosition = await prisma.position.create({
-                    data: {
-                        title: 'Test Position',
-                        description: 'Test',
-                        location: 'Remote',
-                        jobDescription: 'Test',
-                        companyId: company.id,
-                        interviewFlowId: interviewFlow.id,
-                    },
-                });
+            // Asegurar que tenemos los datos necesarios
+            expect(company).not.toBeNull();
+            expect(interviewFlow).not.toBeNull();
+            
+            if (!company || !interviewFlow) {
+                throw new Error('Missing required test data: company or interviewFlow');
+            }
 
+            const emptyPosition = await prisma.position.create({
+                data: {
+                    title: 'Test Position',
+                    description: 'Test',
+                    location: 'Remote',
+                    jobDescription: 'Test',
+                    companyId: company.id,
+                    interviewFlowId: interviewFlow.id,
+                },
+            });
+
+            try {
                 const response = await request(app)
                     .get(`/positions/${emptyPosition.id}/candidates`)
                     .expect(200);
 
                 expect(Array.isArray(response.body)).toBe(true);
                 expect(response.body.length).toBe(0);
-
-                // Limpiar
+            } finally {
+                // Limpiar siempre, incluso si el test falla
                 await prisma.position.delete({ where: { id: emptyPosition.id } });
             }
         });

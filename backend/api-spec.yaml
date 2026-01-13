@@ -189,6 +189,7 @@ paths:
           description: Candidate not found
         '500':
           description: Internal server error
+  /candidates/{id}/stage:
     put:
       summary: Update candidate stage
       description: Updates the current interview stage for a candidate's application.
